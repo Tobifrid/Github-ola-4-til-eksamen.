@@ -86,7 +86,7 @@ library(tidyverse)
 library(httr)
 library(jsonlite)
 library(rvest)
-library(leaflet)     # interaktive kort
+library(leaflet)     
 source("util OLA 4.R")     # getToken() og getRawFromeurl()
 
 # ---- Hent kolonnenavnene til states fra OpenSkys dokumentation ----
@@ -125,7 +125,7 @@ bbox_url <- function(lamin, lomin, lamax, lomax) {
          "&lamax=", lamax, "&lomax=", lomax)                    # ? starter filtrene, & adskiller dem
 }
 
-
+#til opgave 3.2
 # ---- Hent ruten for ét fly ----
 hent_rute <- function(icao24, token) {
   rute_url <- paste0("https://opensky-network.org/api/tracks/all?icao24=", icao24, "&time=0")
@@ -137,6 +137,23 @@ hent_rute <- function(icao24, token) {
   rute <- data.frame(rute_json$path)                             # path = alle punkter på ruten
   colnames(rute) <- c("tid", "latitude", "longitude", "hoejde", "kurs", "paa_jorden")
   rute <- rute |>
+    mutate(latitude  = as.numeric(latitude),                     # tekst -> tal
+           longitude = as.numeric(longitude),
+           kurs      = as.numeric(kurs))
+  return(rute)
+}
+
+#til opgave 3.2
+# ---- Indlæs et cirklende fly fra lærerens rds-filer ----
+hent_cirklende_fly <- function(filnavn) {
+  rute <- readRDS(filnavn)
+  rute <- rute |>
+    rename(tid        = time,                                    # samme navne som hent_rute()
+           latitude   = lat,
+           longitude  = lng,
+           hoejde     = alt,
+           kurs       = crs,
+           paa_jorden = grd) |>
     mutate(latitude  = as.numeric(latitude),                     # tekst -> tal
            longitude = as.numeric(longitude),
            kurs      = as.numeric(kurs))
@@ -180,3 +197,45 @@ kort_rute <- function(rute) {
     addPolylines(lng = ~longitude, lat = ~latitude, color = "blue") |>   # ruten som en streg
     addCircleMarkers(lng = ~longitude, lat = ~latitude, radius = 2)      # punkterne på ruten
 }
+
+# til opgave 3.3
+# vi er nødtil at bygge en funktion som viser kurs og kurs ændringer
+# ---- Kursen for én rute: standardafvigelse og ændring ----
+kurs_maal <- function(rute) {
+  rute <- rute |>
+    mutate(kursaendring = kurs - lag(kurs),                    # ændring fra punktet før
+           kursaendring = ((kursaendring + 180) %% 360) - 180) # 358 -> 2 bliver +4, ikke -356
+  return(data.frame(sdcourse           = sd(rute$kurs, na.rm = TRUE),
+                    sd_kursaendring    = sd(rute$kursaendring, na.rm = TRUE),
+                    samlet_drej_grader = sum(abs(rute$kursaendring), na.rm = TRUE)))
+}
+
+#til opgave 3.4
+
+# ---- lmres: hvor godt passer ruten på en ret linje? ----
+lm_r2 <- function(rute) {
+  model <- lm(latitude ~ longitude, data = rute)        # en ret linje gennem ruten
+  return(summary(model)$r.squared)                      # høj = lige ud, lav = cirkler
+}
+
+# ---- myOwnAlg: hvor mange gange har flyet drejet hele vejen rundt? ----
+antal_cirkler <- function(rute) {
+  kursaendring <- rute$kurs - lag(rute$kurs)            # drej fra punktet før
+  kursaendring <- ((kursaendring + 180) %% 360) - 180   # 358 -> 2 er +4 grader, ikke -356
+  samlet_drej  <- sum(abs(kursaendring), na.rm = TRUE)  # læg alle drej sammen
+  return(samlet_drej / 360)                             # 360 grader = én cirkel
+}
+# ---- Saml alle mål for ét fly i én række til tabellen i opgave 3.4 ----
+# “alle_maal() tager ruten for ét fly og beregner de tre mål på én gang. 
+# Resultatet er én række, så jeg kan bruge bind_rows() i et loop og få hele tabellen med alle fly.”
+# Bruger sd(), lm_r2() og antal_cirkler() på samme rute, så målene kan sammenlignes
+alle_maal <- function(rute, icao, isOff) {
+  data.frame(icao     = icao,                           # flyets id (eller filnavnet for lærerens fly)
+             sdcourse = sd(rute$kurs, na.rm = TRUE),    # standardafvigelse på kursen: høj = varierende kurs
+             lmres    = lm_r2(rute),                    # R² for en ret linje: lav = cirkler
+             myOwnAlg = antal_cirkler(rute),            # vores egen algoritme: antal hele cirkler
+             isOff    = isOff)                          # facit: 1 = cirkler, 0 = almindeligt
+}
+
+
+

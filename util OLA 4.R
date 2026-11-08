@@ -20,7 +20,8 @@ getToken <- function() {
 
 # Hent data fra en URL, og prøv igen med nyt token, hvis det er udløbet
 getRawFromeurl <- function(url, token) {
-  rawres <- GET(url, add_headers(Authorization = paste("Bearer", token, sep = " ")))
+  rawres <- GET(url, add_headers(Authorization = paste("Bearer", token, sep = " ")),
+                timeout(10))                     # vent højst 10 sekunder
   if (rawres$status_code == 401) {                                                     # tokenet er udløbet
     token  <- getToken()
     rawres <- GET(url, add_headers(Authorization = paste("Bearer", token, sep = " "))) # prøv igen
