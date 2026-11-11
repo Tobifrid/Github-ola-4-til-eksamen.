@@ -10,10 +10,11 @@ token        <- getToken()                                       # nyt token
 kolonnenavne <- hent_kolonnenavne()                              # navnene fra dokumentationen
 
 # ---- Fly over Nordsøen (lærerens bbox) ----
-nordsoen_url <- bbox_url(lamin = 52.055129,                      # latitude min  = syd
-                         lomin = -6.065140,                      # longitude min = vest
-                         lamax = 56.196869,                      # latitude max  = nord
-                         lomax = 4.305954)                       # longitude max = øst
+lamin <- 52.055129                                               # latitude min  = syd
+lomin <- -6.065140                                               # longitude min = vest
+lamax <- 56.196869                                               # latitude max  = nord
+lomax <- 4.305954                                                # longitude max = øst
+nordsoen_url <- bbox_url(lamin, lomin, lamax, lomax)             # brug variablerne                  # longitude max = øst
 fly_nordsoen <- hent_fly(nordsoen_url, token, kolonnenavne)
 nrow(fly_nordsoen)
 # antal fly over Nordsøen lige nu
@@ -40,7 +41,7 @@ saveRDS(icao_vektor, "icao_nordsoen.rds")                        # gem, så 3.3 
 # =====================================================================
 # Opgave 3.2: Ét almindeligt fly og ét cirklende fly
 # =====================================================================
-mit_fly_icao24 <- "a5823e"                             # SKIFT FLY HER (6 tegn, fx "4acb04")
+mit_fly_icao24 <- "841c48"                             # SKIFT FLY HER (6 tegn, fx "4acb04")
 
 almindeligt_fly <- hent_rute(mit_fly_icao24, token)              # vores eget fly husk vores token skal med i hent rute ellers vil den ikke hente kører
 cirklende_fly   <- hent_cirklende_fly("data/circMT.rds")         # cirklende fly fra Wulfs rds-filer
@@ -94,7 +95,7 @@ resultater |> arrange(desc(sdcourse)) |> head()
 # =====================================================================
 sammenligning_med_vore_algoritme <- data.frame()
 
-# lærerens cirklende fly (isOff = 1)
+# Wulfs cirklende fly (isOff = 1)
 for (fil in list.files("data", pattern = "rds$", full.names = TRUE)) {
   rute  <- hent_cirklende_fly(fil)
   sammenligning_med_vore_algoritme <- bind_rows(sammenligning_med_vore_algoritme, 
@@ -116,3 +117,25 @@ saveRDS(sammenligning_med_vore_algoritme, "tabel_3_4.rds")                      
 sammenligning_med_vore_algoritme|> arrange(desc(myOwnAlg))
 # de cirklende fly bør ligge øverst
 
+# =====================================================================
+# Opgave 3.5: overvåg mistænkelige fly
+# =====================================================================
+
+mistaenkelige <- data.frame()                                    # tom tabel, før loopet
+for (icao in fly_nordsoen$icao24) {
+  rute <- hent_rute(icao, token)
+  if (!is.null(rute)) {                                          # kun fly med en rute
+    rute_i_bbox <- rute |>
+      filter(latitude  >= lamin, latitude  <= lamax,             # kun den del af ruten,
+             longitude >= lomin, longitude <= lomax)             # der ligger i bboxen
+    if (antal_cirkler(rute_i_bbox) > 2) {                        # vores algoritme, kun i bboxen
+      mistaenkelige <- bind_rows(mistaenkelige, data.frame(icao = icao))
+    }
+  }
+  Sys.sleep(1)
+}
+filnavn <- paste0("mistaenkelige_fly_", Sys.Date(), ".csv")      # dato i filnavnet
+write.csv(mistaenkelige, filnavn, row.names = FALSE)     # gem listen i en fil
+mistaenkelige$icao  
+mit_fly_icao24 <- "43bc97"                           # SKIFT TIL ET FLY FRA LISTEN
+kort_rute(hent_rute(mit_fly_icao24, token))
