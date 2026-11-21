@@ -1,10 +1,9 @@
 # =====================================================================
 # OLA 4 – Opgave 3: Hent fly over Nordsøen og plot og track et specifikt fly
 # =====================================================================
-source("Funktioner til OLA 4.R")                               # henter alle funktionerne
-
+source("Funktioner til OLA 4.R")                                 # henter alle funktionerne
 # =====================================================================
-#opgave 3.1Hent fly over Nordsøen og plot
+# Opgave 3.1: Hent fly over Nordsøen og plot
 # =====================================================================
 token        <- getToken()                                       # nyt token
 kolonnenavne <- hent_kolonnenavne()                              # navnene fra dokumentationen
@@ -14,10 +13,16 @@ lamin <- 52.055129                                               # latitude min 
 lomin <- -6.065140                                               # longitude min = vest
 lamax <- 56.196869                                               # latitude max  = nord
 lomax <- 4.305954                                                # longitude max = øst
-nordsoen_url <- bbox_url(lamin, lomin, lamax, lomax)             # brug variablerne                  # longitude max = øst
+nordsoen_url <- bbox_url(lamin, lomin, lamax, lomax)             # brug variablerne
 fly_nordsoen <- hent_fly(nordsoen_url, token, kolonnenavne)
-nrow(fly_nordsoen)
-# antal fly over Nordsøen lige nu
+
+nrow(fly_nordsoen)                                               # antal fly over Nordsøen lige nu
+# 19. november kl. 9.20: 116 fly
+# 19. november kl. 12.57: 185 fly
+# 19. november kl. 18.58: 144 fly
+fly_nordsoen |> count(origin_country, sort = TRUE) |> head(5)    # hvor mange fly fra hvilke lande?
+# kl. 9.20:  Storbritannien 53, Irland 13, Holland 9, USA 9, Malta 8
+# kl. 12.57: Storbritannien 86, Irland 23, Holland 15, Tyskland 11, USA 11
 
 # ---- Barplot: antal fly pr. land ----
 fly_pr_land <- fly_nordsoen |>
@@ -30,64 +35,53 @@ ggplot(fly_pr_land, aes(x = reorder(origin_country, n), y = n)) +
 
 # ---- Gem icao24'erne til opgave 3.3 ----
 icao_vektor <- fly_nordsoen$icao24
-saveRDS(icao_vektor, "icao_nordsoen.rds")                        # gem, så 3.3 kan bruge den samme liste
+saveRDS(icao_vektor, "icao_nordsoen.rds")                        # gem, så 3.3 og 3.4 bruger den samme liste
 
-# =====================================================================
-#opgave 3.2 track et specifikt fly
-# =====================================================================
-# vores specifikke fly placere du i linje: 43
 
-# ---- Indlæs et cirklende fly fra wulfs rds-filer ----
 # =====================================================================
 # Opgave 3.2: Ét almindeligt fly og ét cirklende fly
 # =====================================================================
-mit_fly_icao24 <- "841c48"                             # SKIFT FLY HER (6 tegn, fx "4acb04")
+mit_fly_icao24 <- fly_nordsoen$icao24[1]                         # første fly fra listen lige nu (et gammelt icao24 kan være landet)
 
-almindeligt_fly <- hent_rute(mit_fly_icao24, token)              # vores eget fly husk vores token skal med i hent rute ellers vil den ikke hente kører
-cirklende_fly   <- hent_cirklende_fly("data/circMT.rds")         # cirklende fly fra Wulfs rds-filer
+almindeligt_fly    <- hent_rute(mit_fly_icao24, token)           # vores eget fly, husk token skal med i hent_rute
+Wulf_cirklende_fly <- hent_cirklende_fly("data/circMT.rds")      # cirklende fly fra Wulfs rds-filer
 
 kort_rute(almindeligt_fly)                                       # almindeligt fly på kortet
-kort_rute(cirklende_fly)                                         # cirklende fly på kortet
+kort_rute(Wulf_cirklende_fly)                                    # Wulfs cirklende fly på kortet
 
 # kursen over tid: her ses forskellen tydeligst
-# vi har her til bare brugt grimt plot
 par(mfrow = c(1, 2))                                             # to plots ved siden af hinanden
-plot(almindeligt_fly$tid, almindeligt_fly$kurs, main = "Almindeligt fly", xlab = "Tid", ylab = "Kurs (grader)")
-plot(cirklende_fly$tid,   cirklende_fly$kurs,   main = "Cirklende fly",   xlab = "Tid", ylab = "Kurs (grader)")
+plot(almindeligt_fly$tid,    almindeligt_fly$kurs,    main = "Almindeligt fly", xlab = "Tid", ylab = "Kurs (grader)")
+plot(Wulf_cirklende_fly$tid, Wulf_cirklende_fly$kurs, main = "Cirklende fly",   xlab = "Tid", ylab = "Kurs (grader)")
 par(mfrow = c(1, 1))
-# almindeligt fly: kursen er næsten den samme hele tiden
-# cirklende fly: kursen går rundt fra 0 til 360 grader igen og igen
 
 #========== svar på opgave 3.2
 # almindeligt fly: kursen er stabil omkring 290-315 grader, bortset fra et drej ved start
 # cirklende fly: kursen går fra 360 til 0 grader to gange = flyet flyver to hele cirkler
 
-# =====================================================================
-#opgave 3.3 lav loop på alle fly! 
-# =====================================================================
-# # ---- Gem icao24'erne til opgave 3.3 ----
-icao_vektor <- fly_nordsoen$icao24
-saveRDS(icao_vektor, "icao_nordsoen.rds")                        # gem, så 3.3 kan bruge den samme liste
+
 # =====================================================================
 # Opgave 3.3: Hent tracks for alle fly og beregn standardafvigelsen på kursen
 # =====================================================================
-icao_vektor <- readRDS("icao_nordsoen.rds")                    # de samme fly som i opgave 3.1
+icao_vektor <- readRDS("icao_nordsoen.rds")                      # de samme fly som i opgave 3.1
 
-resultater <- data.frame()                                     # tom tabel, før loopet
+resultater <- data.frame()                                       # tom tabel, før loopet
+alle_ruter <- data.frame()                                       # her gemmer vi alle ruterne, så 3.5 kan bruge dem
 for (i in 1:length(icao_vektor)) {
   rute <- hent_rute(icao_vektor[i], token)
-  if (!is.null(rute)) {                                        # kun fly med en rute husk is.null tjekke om ruten er lig nul, men med ! tager den alle som ikke er lig nul 
+  if (!is.null(rute)) {                                          # kun fly med en rute, fly uden rute springes over
     maal <- kurs_maal(rute)
-    maal$icao <- icao_vektor[i]                                # icao vektor havde vi defineret som være icao24 kolonnen fra fly_nordsoen
-    resultater <- bind_rows(resultater, maal)                  # sæt en ny række på med bind_rows
+    maal$icao <- icao_vektor[i]                                  # flyets icao24
+    resultater <- bind_rows(resultater, maal)                    # sæt en ny række på med bind_rows
+    alle_ruter <- bind_rows(alle_ruter, rute |> mutate(icao = icao_vektor[i]))   # gem ruten + hvilket fly
   }
-  Sys.sleep(1)                                                 # vent 1 sekund, så OpenSky ikke bremser os, hvis den ikke er der, så vil r nogle gange fejle
+  Sys.sleep(1)                                                   # vent 1 sekund, så OpenSky ikke afviser os (statuskode 429)
 }
-saveRDS(resultater, "resultater_3_3.rds")                      # gem, så vi ikke skal hente igen
-resultater |> arrange(desc(sdcourse)) |> head()
-# vi har arrangeret så flyene med den mest varierede kurs kommer øverst i resultater
-#HUSK! Hver gang loopet kører kurs_maal(rute), kommer der en række ud med kolonnen sdcourse. 
-#bind_rows() samler alle rækkerne i resultater. Derfor kan du bagefter sortere efter den:
+saveRDS(resultater, "resultater_3_3.rds")                        # gem, så vi ikke skal hente igen
+saveRDS(alle_ruter, "alle_ruter_3_3.rds")                        # gem ruterne til opgave 3.5
+resultater |> arrange(desc(sdcourse)) |> head()                  # flyene med den mest varierede kurs øverst
+# HUSK: hver gang loopet kører kurs_maal(rute), kommer der en række ud med kolonnen sdcourse.
+# bind_rows() samler alle rækkerne i resultater, så vi bagefter kan sortere efter den.
 
 
 # =====================================================================
@@ -97,45 +91,70 @@ sammenligning_med_vore_algoritme <- data.frame()
 
 # Wulfs cirklende fly (isOff = 1)
 for (fil in list.files("data", pattern = "rds$", full.names = TRUE)) {
-  rute  <- hent_cirklende_fly(fil)
-  sammenligning_med_vore_algoritme <- bind_rows(sammenligning_med_vore_algoritme, 
-                                      alle_maal(rute, icao = basename(fil), isOff = 1))
+  rute <- hent_cirklende_fly(fil)
+  sammenligning_med_vore_algoritme <- bind_rows(sammenligning_med_vore_algoritme,
+                                                alle_maal(rute, icao = basename(fil), isOff = 1))
 }
 
 # vores fly fra Nordsøen (isOff = 0)
 icao_vektor <- readRDS("icao_nordsoen.rds")
 for (i in 1:length(icao_vektor)) {
   rute <- hent_rute(icao_vektor[i], token)
-  if (!is.null(rute)) {                                 # kun fly med en rute
-    sammenligning_med_vore_algoritme<- bind_rows(sammenligning_med_vore_algoritme, 
-                                      alle_maal(rute, icao = icao_vektor[i], isOff = 0))
-  }
-  Sys.sleep(1)
-}
-
-saveRDS(sammenligning_med_vore_algoritme, "tabel_3_4.rds")                        # gem, så vi ikke skal hente igen
-sammenligning_med_vore_algoritme|> arrange(desc(myOwnAlg))
-# de cirklende fly bør ligge øverst
-
-# =====================================================================
-# Opgave 3.5: overvåg mistænkelige fly
-# =====================================================================
-
-mistaenkelige <- data.frame()                                    # tom tabel, før loopet
-for (icao in fly_nordsoen$icao24) {
-  rute <- hent_rute(icao, token)
   if (!is.null(rute)) {                                          # kun fly med en rute
-    rute_i_bbox <- rute |>
-      filter(latitude  >= lamin, latitude  <= lamax,             # kun den del af ruten,
-             longitude >= lomin, longitude <= lomax)             # der ligger i bboxen
-    if (antal_cirkler(rute_i_bbox) > 2) {                        # vores algoritme, kun i bboxen
-      mistaenkelige <- bind_rows(mistaenkelige, data.frame(icao = icao))
-    }
+    sammenligning_med_vore_algoritme <- bind_rows(sammenligning_med_vore_algoritme,
+                                                  alle_maal(rute, icao = icao_vektor[i], isOff = 0))
   }
   Sys.sleep(1)
 }
-filnavn <- paste0("mistaenkelige_fly_", Sys.Date(), ".csv")      # dato i filnavnet
-write.csv(mistaenkelige, filnavn, row.names = FALSE)     # gem listen i en fil
-mistaenkelige$icao  
-mit_fly_icao24 <- "43bc97"                           # SKIFT TIL ET FLY FRA LISTEN
-kort_rute(hent_rute(mit_fly_icao24, token))
+
+saveRDS(sammenligning_med_vore_algoritme, "tabel_3_4.rds")       # gem, så vi ikke skal hente igen
+sammenligning_med_vore_algoritme |> arrange(desc(myOwnAlg))
+# kl. 18.58: 144 fly, 136 med rute. Alle 9 af Wulfs fly er over 2 omgange og ligger i top 17;
+#            8 af vores 136 egne fly er også over 2 (højest c2b5b7 med 8,8 omgange).
+#            408320 og 40831f har næsten samme icao24 og drejer lige meget: måske to fly, der flyver sammen.
+# =====================================================================
+# Opgave 3.5: uden automatisering Overvåg mistænkelige fly
+# =====================================================================
+# ---- Kig i de fly, vi allerede har hentet i 3.1 og 3.3 (ingen nye kald til OpenSky) ----
+alle_ruter <- readRDS("alle_ruter_3_3.rds")                                         # ruterne fra 3.3
+nrow(alle_ruter)                                                                   # TJEK: skal være større end 0, ellers har OpenSky bremset 3.3
+
+mistaenkelige <- data.frame(icao = character(0), omgange = numeric(0))            # tom tabel med kolonnerne, før loopet
+for (icao_nr in unique(alle_ruter$icao)) {                                         # ét fly ad gangen
+  rute_i_bbox <- alle_ruter |>
+    filter(icao == icao_nr,                                                        # kun dette fly
+           latitude  >= lamin, latitude  <= lamax,                                 # og kun den del af ruten,
+           longitude >= lomin, longitude <= lomax)                                 # der ligger over Nordsøen
+  omgange <- samlet_drejning_i_omgange(rute_i_bbox)                                # vores algoritme
+  if (omgange > 2) {
+    mistaenkelige <- bind_rows(mistaenkelige, data.frame(icao = icao_nr, omgange = round(omgange, 1)))
+  }
+}
+mistaenkelige <- mistaenkelige |>
+  left_join(fly_nordsoen |> select(icao24, callsign), by = c("icao" = "icao24")) |>   # sæt callsign på, så flyene er nemme at slå op
+  mutate(callsign = str_trim(callsign)) |>                                           # fjern mellemrum til sidst
+  arrange(desc(omgange))                                                             # mest mistænkelige øverst
+
+filnavn <- paste0("mistaenkelige_fly_", format(Sys.time(), "%Y-%m-%d_%H%M"), ".csv")   # dato og klokkeslæt i filnavnet
+write.csv(mistaenkelige, filnavn, row.names = FALSE)                               # gem listen i en fil
+nrow(mistaenkelige)                                                                # antal mistænkelige fly
+mistaenkelige # se de mistænkelige flys icao nr og callsign plus omgange de cirklede  
+
+# =====================================================================
+# >>> SLÅ ET FLY OP: skriv callsign eller icao24 her og kør de to linjer <<<
+# =====================================================================
+mit_fly <- "SAVAGE81"                                                                # SKRIV HER: callsign (fx "RYR8KL") eller icao24 (fx "40814a")
+vis_rute(mit_fly, fly_nordsoen, alle_ruter)                                        # ruten på kortet, ingen kald til OpenSky
+
+
+
+# Log over runderne (skriv en ny linje, hver gang blokken køres):
+# 19. november kl. 9.00: 0 mistænkelige fly
+# 19. november kl. 12.45: 18 mistænkelige fly
+# 19. november kl. 19.10: 5 mistænkelige fly – CFC2547 (canadisk militær, 8,8), GBBKA, SAVAGE82/SAVAGE81 (to fly, der flyver sammen) og GRVNA
+# CFC2547 cirkler tæt sydvest for Glasgow, sandsynligvis ved Prestwick Airport (militær mellemlanding/øvelse).
+# Algoritmen finder mønsteret, men et menneske skal vurdere, om det er mistænkeligt.
+# SAVAGE81 flyver fra land syd for Sunderland ud over Nordsøen, laver sløjfer og skarpe vendinger og flyver tilbage:
+# ikke pæne cirkler, men et afsøgningsmønster. Det viser, at algoritmen også fanger zigzaggende fly.
+
+
