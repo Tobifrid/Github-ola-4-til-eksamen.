@@ -1,8 +1,11 @@
 library(httr)
 library(jsonlite)
 
-clientId     <- "tobiashfrid@gmail.com-api-client"
-clientSecret <- "NLR3dsiF8zUDHeJPEbncgcJHdBEYnuaz"                    
+#usethis::edit_r_environ()                                          # åbn .Renviron, hvis koderne skal ændres
+readRenviron("~/.Renviron")                                         # indlæs koderne fra .Renviron
+
+clientId     <- Sys.getenv("OPENSKY_CLIENT_ID")                     # OpenSky client id fra .Renviron
+clientSecret <- Sys.getenv("OPENSKY_CLIENT_SECRET")                 # OpenSky kode fra .Renviron
 
 # Hent et adgangstoken
 getToken <- function() {
@@ -21,10 +24,10 @@ getToken <- function() {
 # Hent data fra en URL, og prøv igen med nyt token, hvis det er udløbet
 getRawFromeurl <- function(url, token) {
   rawres <- GET(url, add_headers(Authorization = paste("Bearer", token, sep = " ")),
-                timeout(10))                     # vent højst 10 sekunder
-  if (rawres$status_code == 401) {                                                     # tokenet er udløbet
+                timeout(10))                                       # vent højst 10 sekunder
+  if (rawres$status_code == 401) {                                 # tokenet er udløbet
     token  <- getToken()
-    rawres <- GET(url, add_headers(Authorization = paste("Bearer", token, sep = " "))) # prøv igen
+    rawres <- GET(url, add_headers(Authorization = paste("Bearer", token, sep = " ")))   # prøv igen
   }
   return(rawres)
 }
