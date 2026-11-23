@@ -26,12 +26,12 @@ forhandler_tabel <- alle_biler_med_forhandler |>
 bil_tabel <- alle_biler_med_forhandler |>
   left_join(forhandler_tabel, by = c("forhandler_navn", "forhandler_adresse", "forhandler_by",
                                      "forhandler_landsdel", "forhandler_cvr")) |>   # giv hver bil sin forhandlers id
-  mutate(carid = as.integer(carid), sold = FALSE) |>
-  select(carid, model, model_kort, registrerings_aargang, km, link, forhandler_id, sold)
+  mutate(carid = as.integer(carid)) |>
+  select(carid, model, model_kort, registrerings_aargang, km, link, forhandler_id)
 
 pris_tabel <- alle_biler_med_forhandler |>
-  mutate(carid = as.integer(carid)) |>
-  select(carid, pris, scrapedate)                                              # prisen + hvornår den blev set
+  mutate(carid = as.integer(carid), sold = FALSE) |>                           # ingen biler er solgt i kørsel 1
+  select(carid, pris, scrapedate, sold)                                        # prisen + hvornår den blev set
 
 # ---- Gem INSERT-statements som .sql-fil husk writeLines gemmer lokalt på ens prjektmappe ikke i github ----
 # sqlAppendTable laver INSERT INTO ... VALUES ... den er super smart, den laver vores insert_statements til et sprog som SQL forstår
@@ -71,7 +71,7 @@ seneste_koersel <- dbGetQuery(forbindelse, "
   SELECT b.carid, p.pris
   FROM bil b
   JOIN pris p ON p.carid = b.carid
-  WHERE b.sold = FALSE
+  WHERE p.sold = FALSE                                                         -- kun biler, der ikke er solgt
     AND p.scrapedate = (SELECT MAX(p2.scrapedate) FROM pris p2 WHERE p2.carid = b.carid);")   # nyeste pris pr. bil
 
 # ---- a) b) c): Find nye, ændrede og solgte ----
@@ -89,21 +89,26 @@ forhandlere_i_db <- dbGetQuery(forbindelse, "SELECT * FROM forhandler")
 
 nye_bil_tabel <- nye |>
   left_join(forhandlere_i_db, by = c("forhandler_navn", "forhandler_adresse")) |>   # find forhandlerens id
-  mutate(sold = FALSE) |>
-  select(carid, model, model_kort, registrerings_aargang, km, link, forhandler_id, sold)
+  select(carid, model, model_kort, registrerings_aargang, km, link, forhandler_id)
 dbAppendTable(forbindelse, "bil", nye_bil_tabel)                               # a) nye biler
 
-dbAppendTable(forbindelse, "pris", nye |> select(carid, pris, scrapedate))     # a) pris for nye biler
+dbAppendTable(forbindelse, "pris", nye |>
+                mutate(sold = FALSE) |>
+                select(carid, pris, scrapedate, sold))                         # a) pris for nye biler
 dbAppendTable(forbindelse, "pris", aendrede |>
-                select(carid, pris = pris_ny, scrapedate))                     # b) ny pris = ny række (gammel pris bevares)
+                mutate(sold = FALSE) |>
+                select(carid, pris = pris_ny, scrapedate, sold))               # b) ny pris = ny række (gammel pris bevares)
 
-dbExecute(forbindelse, str_c("UPDATE bil SET sold = TRUE WHERE carid IN (",
-                             str_c(solgte$carid, collapse = ", "), ");"))      # c) solgte markeres, slettes ikke
+solgte_tabel <- solgte |>
+  mutate(scrapedate = max(koersel_2$scrapedate),                               # datoen for kørsel-II = dagen bilen forsvandt
+         sold       = TRUE) |>
+  select(carid, pris, scrapedate, sold)                                        # sidste kendte pris
+dbAppendTable(forbindelse, "pris", solgte_tabel)                               # c) solgt = ny række, intet overskrives
 
 # ---- Tjek ----
-dbGetQuery(forbindelse, "SELECT COUNT(*) AS solgte FROM bil WHERE sold = TRUE")                 # 5
-dbGetQuery(forbindelse, "SELECT carid, pris, scrapedate FROM pris
+dbGetQuery(forbindelse, "SELECT COUNT(*) AS solgte FROM pris WHERE sold = TRUE")                # 5
+dbGetQuery(forbindelse, "SELECT carid, pris, scrapedate, sold FROM pris
                          WHERE carid IN (SELECT carid FROM pris GROUP BY carid HAVING COUNT(*) > 1)
-                         ORDER BY carid, scrapedate")                          # de 3 biler med to priser
+                         ORDER BY carid, scrapedate")                          # 8 biler med to rækker: 3 ændrede + 5 solgte
 
 dbDisconnect(forbindelse)
