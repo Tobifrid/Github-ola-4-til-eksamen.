@@ -209,6 +209,14 @@ prissammenligning_sikker |>
             antal_i_alt          = n())                                        # antal kombinationer i alt
 # Gran Coupé 34.168 kr. (4 af 4), SUV 20.285 kr. (12 af 17), Hatchback 459 kr. (1 af 2), Sedan −1.502 kr. (2 af 5)
 
+prissammenligning_sikker |>
+  summarise(dk_median        = median(dansk_median_pris),     # dansk pris
+            de_foer_afgift   = median(tysk_median_pris),      # tysk pris inkl. moms
+            de_efter_afgift  = median(tysk_pris_med_afgift))  # tysk pris + afgift + omregistrering
+summarise(dk_median        = median(dansk_median_pris),     # dansk pris
+tyskebiler_foer_afgift   = median(tysk_median_pris),      # tysk pris inkl. moms
+tyskebiler_efter_afgift  = median(tysk_pris_med_afgift))  # tysk pris + afgift + omregistrering
+
 # =====================================================================
 # Opgave 1.3: Kan Powers kampagneside webscrapes?
 # =====================================================================

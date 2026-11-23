@@ -50,8 +50,7 @@ hent_bilbasen_sider <- function(basis_url, antal_sider) {
   for (i in 1:antal_sider) {                                                  # én side ad gangen
     browser$Page$navigate(str_c(basis_url, i))                                # fx ...&page=1, ...&page=2
     Sys.sleep(5)                                                              # vent på loading og vær høflig over for Bilbasen
-    alle_sider[[i]] <- browser$Runtime$evaluate("document.documentElement.outerHTML")$result$value   # gem siden som tekst
-    print(str_c("Side ", i, " hentet"))                                       # så man kan følge med
+    alle_sider[[i]] <- browser$Runtime$evaluate("document.documentElement.outerHTML")$result$value                                      # så man kan følge med
   }
   
   browser$close()                                                             # luk browseren
@@ -100,7 +99,7 @@ hent_forhandlere <- function(alle_biler) {
   alle_forhandlere <- data.frame()                                            # tom tabel før loopet
   
   for (i in 1:nrow(alle_biler)) {                                             # én bil ad gangen
-    bilside_tekst <- tryCatch({                                               # prøv at hente siden ...
+    bilside_tekst <- tryCatch({                                               # prøv at hente siden ->
       browser$Page$navigate(alle_biler$link[i])                               # gå til bil nr. i
       Sys.sleep(4)                                                            # vent på loading og vær høflig
       browser$Runtime$evaluate("document.documentElement.outerHTML")$result$value
