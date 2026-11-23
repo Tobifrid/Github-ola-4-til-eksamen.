@@ -20,7 +20,17 @@ alle_sider <- readRDS("alle_vores_BMW.rds")                                    #
 alle_biler <- udtraek_bilbasen_biler(alle_sider)
 nrow(alle_biler)                                                               # 1.380 rækker
 n_distinct(alle_biler$carid)                                                   # men kun 1.349 unikke carid'er = 31 dubletter
+# ---- Pil bilerne ud af siderne ----
+alle_biler <- udtraek_bilbasen_biler(alle_sider)                                # linje 20
+nrow(alle_biler)                                                               # linje 21: 1.380 rækker
+n_distinct(alle_biler$carid)                                                   # linje 22: 1.349 unikke carid'er
 
+alle_biler |>                                                                  # NY: links, der ikke ligner en almindelig annonce
+  filter(!str_detect(link, "^https://www.bilbasen.dk/brugt/bil/")) |>
+  select(carid, model, pris, link)
+
+alle_biler |> filter(!str_detect(link, "klikxtra")) |> nrow()                       # forventet: 1.350
+alle_biler |> filter(!str_detect(link, "klikxtra")) |> pull(carid) |> n_distinct()  # forventet: 1.348
 # ---- Rens data ----
 alle_biler <- alle_biler |>
   distinct(carid, .keep_all = TRUE) |>                                         # fjern dubletter (annoncer flyttede side under hentningen)

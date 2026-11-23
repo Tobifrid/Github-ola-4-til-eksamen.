@@ -37,7 +37,9 @@ pris_tabel <- alle_biler_med_forhandler |>
 # sqlAppendTable laver INSERT INTO ... VALUES ... den er super smart, den laver vores insert_statements til et sprog som SQL forstår
 insert_statements <- c(sqlAppendTable(forbindelse, "forhandler", forhandler_tabel, row.names = FALSE),
                        sqlAppendTable(forbindelse, "bil",        bil_tabel,        row.names = FALSE),
-                       sqlAppendTable(forbindelse, "pris",       pris_tabel,       row.names = FALSE))
+                       sqlAppendTable(forbindelse, "pris",       pris_tabel |>
+                                        mutate(scrapedate = as.character(scrapedate)),   # dato som tekst, så den får anførselstegn i SQL
+                                      row.names = FALSE))
 writeLines(paste0(insert_statements, ";"), "opgave 2.2 insert.sql")          
 
 # ---- Indsæt i databasen (rækkefølgen er vigtig pga. fremmednøglerne) ----
