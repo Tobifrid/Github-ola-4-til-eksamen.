@@ -43,7 +43,7 @@ saveRDS(icao_vektor, "icao_nordsoen.rds")                        # gem, så 3.3 
 # =====================================================================
 mit_fly_icao24 <- fly_nordsoen$icao24[1]                         # første fly fra listen lige nu (et gammelt icao24 kan være landet)
 
-almindeligt_fly    <- hent_rute(mit_fly_icao24, token)           # vores eget fly, husk token skal med i hent_rute
+almindeligt_fly    <- hent_rute(mit_fly_icao24, token)           # mit eget fly, husk token skal med i hent_rute
 Wulf_cirklende_fly <- hent_cirklende_fly("data/circMT.rds")      # cirklende fly fra Wulfs rds-filer
 
 kort_rute(almindeligt_fly)                                       # almindeligt fly på kortet

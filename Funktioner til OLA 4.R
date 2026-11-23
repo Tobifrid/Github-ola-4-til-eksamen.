@@ -227,7 +227,7 @@ lm_r2 <- function(rute) {
 # Den måler altså den samlede drejning, ikke kun rigtige cirkler.
 samlet_drejning_i_omgange <- function(rute) {
   kursaendring <- rute$kurs - lag(rute$kurs)            # drej fra punktet før
-  kursaendring <- ((kursaendring + 180) %% 360) - 180   # 358 -> 2 er +4 grader, ikke -356
+  kursaendring <- ((kursaendring + 180) %% 360) - 180   # eks. 358, 2 er +4 grader, ikke -356 %% er modulu resten efter du har divideret 
   samlet_drej  <- sum(abs(kursaendring), na.rm = TRUE)  # læg alle drej sammen (abs: højre og venstre tæller ens)
   return(samlet_drej / 360)                             # 360 grader = én hel omgang
 }

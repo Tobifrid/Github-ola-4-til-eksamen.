@@ -38,10 +38,10 @@ alle_biler <- alle_biler |>
   filter(pris < 999999) |>                                                     # fjern pladsholder-pris (1 i5 til 999.999 kr.)
   relocate(registrerings_aargang, .after = registrerings_dato)
 # ---- Kontrol ----
-nrow(alle_biler)                                                               # 1.347 biler
-sum(is.na(alle_biler$model))                                                   # 0 biler uden model
-summary(alle_biler$pris)                                                       # billigste 129.900 kr., median 354.800 kr., dyreste 999.900 kr. (en i7, realistisk)
-summary(alle_biler$registrerings_aargang)                                      # 2020 til 2026, som vores filter
+nrow(alle_biler)                                            # 1.347 biler
+sum(is.na(alle_biler$model))                                # 0 biler uden model
+summary(alle_biler$pris)                                    # billigste 129.900 kr., median 354.800 kr., dyreste 999.900 kr. (en i7, realistisk)
+summary(alle_biler$registrerings_aargang)                   # 2020 til 2026, som vores filter
 saveRDS(alle_biler, "alle_biler_renset.rds")
 
 # ---- Biler, der "kommer snart" ----
